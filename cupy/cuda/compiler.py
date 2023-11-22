@@ -309,14 +309,27 @@ def compile_using_nvrtc(source, options=(), arch=None, filename='kern.cu',
         return compiled_obj, mapping
 
     if not cache_in_memory:
-        with tempfile.TemporaryDirectory() as root_dir:
-            cu_path = os.path.join(root_dir, filename)
+        # HACKHACKHACK start: Try again with another path because nvrtc compile does not handle chinese user name properly.. lets try program data
+        try:
+            with tempfile.TemporaryDirectory() as root_dir:
+                cu_path = os.path.join(root_dir, filename)
 
-            with open(cu_path, 'w') as cu_file:
-                cu_file.write(source)
+                with open(cu_path, 'w') as cu_file:
+                    cu_file.write(source)
 
-            return _compile(source, options, cu_path,
-                            name_expressions, log_stream, jitify)
+                return _compile(source, options, cu_path,
+                                name_expressions, log_stream, jitify)
+        except Exception as err:
+            program_data_path = os.path.join(os.environ["SystemDrive"], os.sep, 'ProgramData')
+            with tempfile.TemporaryDirectory(dir=program_data_path) as root_dir:
+                cu_path = os.path.join(root_dir, filename)
+
+                with open(cu_path, 'w') as cu_file:
+                    cu_file.write(source)
+
+                return _compile(source, options, cu_path,
+                                name_expressions, log_stream, jitify)
+        # HACKHACKHACK end: Try again with another path because nvrtc compile does not handle chinese user name properly.. lets try program data
     else:
         cu_path = '' if not jitify else filename
         return _compile(source, options, cu_path, name_expressions,
